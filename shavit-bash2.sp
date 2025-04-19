@@ -885,7 +885,7 @@ public void OnClientPostAdminCheck(int client)
 
 public void OnClientPutInServer(int client)
 {
-	if(IsFakeClient(client))
+	if(IsFakeClient(client) || !IsClientInGame(client))
 		return;
 
 	SDKHook(client, SDKHook_Touch, Hook_OnTouch);
