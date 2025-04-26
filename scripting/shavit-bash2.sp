@@ -1,4 +1,5 @@
 #pragma newdecls required
+#pragma dynamic 12000
 
 #include <sourcemod>
 #include <sdktools>
@@ -845,13 +846,6 @@ public void OnClientPutInServer(int client)
 public void OnClientAuthorized(int client, const char[] auth)
 {
 	GetClientAuthId(client, AuthId_Steam3, g_sSteamIdCache[client], sizeof(g_sSteamIdCache[]));
-
-	g_bInSafeGroup[client] = false;
-
-	char groupID[16];
-	g_hSafeGroup.GetString(groupID, sizeof(groupID));
-
-	SteamWorks_GetUserGroupStatus(client, StringToInt(groupID));
 }
 
 public void OnClientDisconnect(int client)
@@ -2893,6 +2887,11 @@ void UpdateGains(int client, float vel[3], float angles[3], int buttons)
 			GetEntProp(client, Prop_Data, "m_nWaterLevel") < 2 &&
 			!(GetEntityFlags(client) & FL_ATCONTROLS))
 		{
+			if (FloatAbs(vel[0]) < 1.0 && FloatAbs(vel[1]) < 1.0)
+			{
+				return;
+			}
+
 			bool isYawing = false;
 			if(buttons & IN_LEFT) isYawing = !isYawing;
 			if(buttons & IN_RIGHT) isYawing = !isYawing;
@@ -2916,6 +2915,11 @@ void UpdateGains(int client, float vel[3], float angles[3], int buttons)
 
 			float velocity[3];
 			GetEntPropVector(client, Prop_Data, "m_vecAbsVelocity", velocity);
+
+			if (FloatAbs(velocity[0]) < 1.0 && FloatAbs(velocity[1]) < 1.0)
+			{
+				return;
+			}
 
 			float fore[3], side[3], wishvel[3], wishdir[3];
 			float wishspeed, wishspd, currentgain;
@@ -3332,6 +3336,11 @@ void SendMessage(JSON_Object json, bool alert)
 		return;
 	}
 
+    if (StrEqual(webhook, alertWebhook))
+    {
+        return;
+    }
+
 	Handle alertRequest = SteamWorks_CreateHTTPRequest(k_EHTTPMethodPOST, webhook);
 	SteamWorks_SetHTTPRequestRawPostBody(alertRequest, "application/json", body, strlen(body));
 	SteamWorks_SetHTTPRequestAbsoluteTimeoutMS(alertRequest, 15000);
@@ -3359,7 +3368,7 @@ void SanitizeName(char[] name)
 
 //groupstuff
 
-public void SteamWorks_OnClientGroupStatus(int accountID, int groupID, bool isMember, bool isOfficer)
+int SteamWorks_OnClientGroupStatus(int accountID, int groupID, bool isMember, bool isOfficer)
 {
 	int client = GetClientFromAccountID(accountID);
 	if (client == -1)
