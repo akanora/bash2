@@ -1,4 +1,5 @@
 #pragma newdecls required
+#pragma dynamic 12000
 
 #include <sourcemod>
 #include <sdktools>
@@ -851,7 +852,8 @@ public void OnClientAuthorized(int client, const char[] auth)
 	char groupID[16];
 	g_hSafeGroup.GetString(groupID, sizeof(groupID));
 
-	SteamWorks_GetUserGroupStatus(client, StringToInt(groupID));
+	int authid = GetSteamAccountID(client)
+	SteamWorks_GetUserGroupStatusAuthID(authid, StringToInt(groupID));
 }
 
 public void OnClientDisconnect(int client)
@@ -2931,26 +2933,30 @@ void UpdateGains(int client, float vel[3], float angles[3], int buttons)
 				wishvel[i] = fore[i] * vel[0] + side[i] * vel[1];
 
 			wishspeed = NormalizeVector(wishvel, wishdir);
-			if(wishspeed > GetEntPropFloat(client, Prop_Send, "m_flMaxspeed")) wishspeed = GetEntPropFloat(client, Prop_Send, "m_flMaxspeed");
 
-			if(wishspeed)
+			float maxSpeed = GetEntPropFloat(client, Prop_Send, "m_flMaxspeed");
+			if(wishspeed > maxSpeed) wishspeed = maxSpeed;
+
+			if(wishspeed > 0.01)
 			{
 				wishspd = (wishspeed > 30.0) ? 30.0 : wishspeed;
 
 				currentgain = GetVectorDotProduct(velocity, wishdir);
 				if(currentgain < 30.0)
+				{
 					gaincoeff = (wishspd - FloatAbs(currentgain)) / wishspd;
-				if(g_bTouchesWall[client] && gaincoeff > 0.5)
-				{
-					gaincoeff -= 1;
-					gaincoeff = FloatAbs(gaincoeff);
-				}
 
-				if(!g_bTouchesFuncRotating[client])
-				{
-					g_flRawGain[client] += gaincoeff;
-				}
+					if(g_bTouchesWall[client] && gaincoeff > 0.5)
+					{
+						gaincoeff -= 1;
+						gaincoeff = FloatAbs(gaincoeff);
+					}
 
+					if(!g_bTouchesFuncRotating[client])
+					{
+						g_flRawGain[client] += gaincoeff;
+					}
+				}
 			}
 		}
 		g_iTicksOnGround[client] = 0;
@@ -3359,7 +3365,7 @@ void SanitizeName(char[] name)
 
 //groupstuff
 
-public void SteamWorks_OnClientGroupStatus(int accountID, int groupID, bool isMember, bool isOfficer)
+public int SteamWorks_OnClientGroupStatus(int accountID, int groupID, bool isMember, bool isOfficer)
 {
 	int client = GetClientFromAccountID(accountID);
 	if (client == -1)
